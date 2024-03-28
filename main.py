@@ -79,7 +79,7 @@ gravatar = Gravatar(app,
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 def admin_only(function):
@@ -97,7 +97,7 @@ def admin_only(function):
 
 @app.route('/')
 def get_all_posts():
-    posts = BlogPost.query.all()
+    posts = db.session.query(BlogPost).all()
     is_admin = False
     if current_user.is_authenticated:
         is_admin = current_user.is_admin()
@@ -109,7 +109,7 @@ def register():
     register_form = RegisterForm()
     if register_form.validate_on_submit():
         email = register_form.email.data
-        if User.query.filter_by(email=email).first():
+        if db.session.query(User).filter_by(email=email).first():
             flash("You've already signed up with that email. Log in instead!")
             return redirect(url_for("login"))
         else:
@@ -129,7 +129,7 @@ def login():
     if login_form.validate_on_submit():
         email = login_form.email.data
         password = login_form.password.data
-        user = User.query.filter_by(email=email).first()
+        user = db.session.query(User).filter_by(email=email).first()
         if not user:
             flash("The email does not exist. Please try again.")
         else:
@@ -149,10 +149,10 @@ def logout():
 
 @app.route("/post/<int:post_id>", methods=["GET", "POST"])
 def show_post(post_id):
-    requested_post = BlogPost.query.get(post_id)
+    requested_post = db.session.get(BlogPost, post_id)
     is_admin = False
     comment_form = None
-    comments = Comment.query.filter_by(blog_post_id=post_id).all()
+    comments = db.session.query(Comment).filter_by(blog_post_id=post_id).all()
     if current_user.is_authenticated:
         is_admin = current_user.is_admin()
         comment_form = CommentForm()
@@ -197,7 +197,7 @@ def add_new_post():
 @app.route("/edit-post/<int:post_id>", methods=["GET", "POST"])
 @admin_only
 def edit_post(post_id):
-    post = BlogPost.query.get(post_id)
+    post = db.session.get(BlogPost, post_id)
     edit_form = CreatePostForm(
         title=post.title,
         subtitle=post.subtitle,
@@ -217,7 +217,7 @@ def edit_post(post_id):
 @app.route("/delete/<int:post_id>")
 @admin_only
 def delete_post(post_id):
-    post_to_delete = BlogPost.query.get(post_id)
+    post_to_delete = db.session.get(BlogPost, post_id)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
@@ -227,7 +227,7 @@ def delete_post(post_id):
 @login_required
 def delete_comment(post_id):
     comment_id = request.args.get("comment_id")
-    com_to_delete = Comment.query.get(comment_id)
+    com_to_delete = db.session.get(Comment, comment_id)
     if not com_to_delete:
         abort(404)
     if current_user.is_admin() or current_user.id == com_to_delete.author.id:
